@@ -59,12 +59,19 @@ Single source of truth for all rules and architecture documentation.
 
 ### Performance & Optimization
 
-**Decision order**: Choose pattern first, then eviction algorithm.
+**Decision order**: Choose pattern first, then eviction algorithm, then tool.
 
 | Order | File | Purpose |
 |-------|------|---------|
 | **1st** | `caching-patterns.md` | Caching patterns (Cache-Aside, Write-Through, Write-Behind, Read-Through, Write-Around, Refresh-Ahead) - **HOW** to use cache |
-| **2nd** | `caching-strategies.md` | Eviction algorithms (FIFO, LRU, LFU, MRU, ARC, CLOCK, 2Q, SLRU, TTL) - **WHAT** to evict when full |
+| **2nd** | `caching-strategies.md` | Eviction algorithms (FIFO, LRU, LFU, MRU, ARC, CLOCK, 2Q, SLRU, TTL, LRFU) - **WHAT** to evict when full |
+| **3rd** | `caching-tools.md` | Caching tools (Redis, TanStack Query, TanStack DB, IndexedDB, localStorage) - **WHERE** to cache |
+
+### System Design Trade-offs
+
+| File | Purpose |
+|------|---------|
+| `system-design-tradeoffs.md` | Fundamental trade-offs in distributed systems: Sync vs Async, Latency vs Throughput, SQL vs NoSQL, Strong vs Eventual Consistency, and more |
 
 ### Other
 
