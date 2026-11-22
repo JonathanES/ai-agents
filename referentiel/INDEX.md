@@ -8,10 +8,11 @@ Automatically generated index of all available components in this ai-agents libr
 
 Entry points that orchestrate agents to accomplish user-facing tasks.
 
-| Command | Description | Location |
-|---------|-------------|----------|
-| **implement** | Routes to appropriate engineer (FastAPI or Next.js), optionally with TDD, then reviews code | `commands/implement.md` |
-| **review** | Reviews code changes (branch, MR/PR, or path) against architecture principles | `commands/review.md` |
+| Command | Description | Parallel | Location |
+|---------|-------------|----------|----------|
+| **implement** | Routes to appropriate engineer (FastAPI or Next.js), optionally with TDD, then reviews code | No | `commands/implement.md` |
+| **implement-fullstack** | ⚡ **NEW** - Runs FastAPI and Next.js engineers in parallel, then integrates and reviews | Yes | `commands/implement-fullstack.md` |
+| **review** | Reviews code changes (branch, MR/PR, or path) against architecture principles | No | `commands/review.md` |
 
 ## Agents
 
