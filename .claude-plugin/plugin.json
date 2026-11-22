@@ -1,0 +1,9 @@
+{
+  "name": "ai-agents",
+  "version": "0.1.0",
+  "description": "TDD coding agents for FastAPI and React/Next.js/TypeScript, plus a clean-code reviewer (DRY, SRP, Strategy over if/else).",
+  "author": {
+    "name": "Jonathan Espiard"
+  },
+  "keywords": ["tdd", "fastapi", "nextjs", "react", "typescript", "code-review"]
+}

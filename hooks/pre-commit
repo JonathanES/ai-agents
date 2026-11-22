@@ -1,0 +1,40 @@
+#!/bin/bash
+# Main pre-commit hook that orchestrates all validation checks
+
+set -e
+
+HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+echo "🔍 Running pre-commit validation..."
+echo ""
+
+EXIT_CODE=0
+
+# 1. Check for referentiel rule duplication
+if [ -x "$HOOKS_DIR/check-referentiel-duplication.sh" ]; then
+    bash "$HOOKS_DIR/check-referentiel-duplication.sh" || EXIT_CODE=$?
+    echo ""
+fi
+
+# 2. Check architecture principles in code
+if [ -x "$HOOKS_DIR/check-architecture-principles.sh" ]; then
+    bash "$HOOKS_DIR/check-architecture-principles.sh" || EXIT_CODE=$?
+    echo ""
+fi
+
+# Exit with accumulated error code
+if [ $EXIT_CODE -ne 0 ]; then
+    echo ""
+    echo "╔════════════════════════════════════════════════════════════╗"
+    echo "║  Pre-commit validation failed                              ║"
+    echo "╚════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "Fix the issues above and try again."
+    echo ""
+    echo "To bypass (not recommended): git commit --no-verify"
+    echo ""
+    exit $EXIT_CODE
+fi
+
+echo "✅ All pre-commit checks passed!"
+exit 0

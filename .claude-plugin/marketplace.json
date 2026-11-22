@@ -1,0 +1,16 @@
+{
+  "name": "ai-agents",
+  "owner": {
+    "name": "Jonathan Espiard"
+  },
+  "metadata": {
+    "description": "Personal TDD coding agents and clean-code review tooling"
+  },
+  "plugins": [
+    {
+      "name": "ai-agents",
+      "source": "./",
+      "description": "TDD coding agents for FastAPI and React/Next.js/TypeScript, plus a clean-code reviewer."
+    }
+  ]
+}

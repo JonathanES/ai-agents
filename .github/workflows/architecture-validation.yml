@@ -1,0 +1,232 @@
+name: Architecture Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  validate-architecture:
+    name: Validate Architecture Compliance
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run architecture validation
+        run: |
+          bash scripts/validate-architecture.sh
+
+      - name: Check validation results
+        if: failure()
+        run: |
+          echo "::error::Architecture validation failed"
+          echo "See output above for specific issues"
+          echo "Run 'bash scripts/validate-architecture.sh' locally to debug"
+          exit 1
+
+  check-referentiel-duplication:
+    name: Check Referentiel Duplication
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Check for duplicated rules
+        run: |
+          echo "Checking for duplicated architecture rules..."
+
+          RULE_KEYWORDS=(
+            "Single Responsibility Principle"
+            "Don't Repeat Yourself"
+            "You Aren't Gonna Need It"
+            "Design patterns are a remedy"
+          )
+
+          VIOLATIONS=0
+
+          for rule in "${RULE_KEYWORDS[@]}"; do
+            # Check agents/
+            if grep -r "$rule" agents/ | grep -v "referentiel/" | grep -qE "(definition|means|principle)"; then
+              echo "::error::Rule '$rule' may be duplicated in agents/"
+              ((VIOLATIONS++))
+            fi
+
+            # Check skills/
+            if grep -r "$rule" skills/ | grep -v "referentiel/" | grep -qE "(definition|means|principle)"; then
+              echo "::error::Rule '$rule' may be duplicated in skills/"
+              ((VIOLATIONS++))
+            fi
+          done
+
+          if [ $VIOLATIONS -gt 0 ]; then
+            echo "::error::Found $VIOLATIONS potential rule duplications"
+            echo "Rules must live in referentiel/ only"
+            echo "See referentiel/MIGRATION.md for how to fix"
+            exit 1
+          fi
+
+          echo "✅ No rule duplication detected"
+
+  check-command-orchestration:
+    name: Check Commands Orchestrate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Verify commands orchestrate
+        run: |
+          echo "Checking that commands orchestrate (don't execute)..."
+
+          VIOLATIONS=0
+
+          for command in commands/*.md commands/*/*.md; do
+            if [ ! -f "$command" ]; then continue; fi
+
+            command_name=$(basename "$command")
+
+            # Commands should not use tools directly
+            if grep -qE "(Read\(|Write\(|Edit\(|Bash\(|Grep\()" "$command"; then
+              echo "::error::$command_name uses tools directly"
+              echo "Commands should orchestrate agents, not use tools"
+              ((VIOLATIONS++))
+            fi
+
+            # Commands should reference agents
+            if ! grep -qE "(agent|Task|subagent|orchestrat)" "$command"; then
+              echo "::warning::$command_name may not orchestrate agents"
+            fi
+          done
+
+          if [ $VIOLATIONS -gt 0 ]; then
+            echo "::error::Found $VIOLATIONS commands that execute work"
+            echo "Commands must orchestrate agents only"
+            echo "See referentiel/MIGRATION.md#migrating-a-command"
+            exit 1
+          fi
+
+          echo "✅ All commands orchestrate properly"
+
+  check-agent-boundaries:
+    name: Check Agent Boundaries
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Verify agent boundaries
+        run: |
+          echo "Checking agent boundaries and tool restrictions..."
+
+          WARNINGS=0
+
+          for agent in agents/*.md; do
+            if [ ! -f "$agent" ]; then continue; fi
+
+            agent_name=$(basename "$agent")
+
+            # Check for boundaries
+            if ! grep -qiE "(boundaries|NEVER|ALWAYS)" "$agent"; then
+              echo "::warning::$agent_name missing boundaries section"
+              ((WARNINGS++))
+            fi
+
+            # Check for tools section
+            if ! grep -qiE "(tools|Tools)" "$agent"; then
+              echo "::warning::$agent_name missing tools section"
+              ((WARNINGS++))
+            fi
+
+            # Check for role definition
+            if ! grep -qE "(role|Role|description)" "$agent"; then
+              echo "::warning::$agent_name missing clear role definition"
+              ((WARNINGS++))
+            fi
+
+            # Check for referentiel references
+            if ! grep -q "referentiel/" "$agent"; then
+              echo "::warning::$agent_name doesn't reference referentiel"
+              ((WARNINGS++))
+            fi
+          done
+
+          if [ $WARNINGS -gt 0 ]; then
+            echo "::notice::Found $WARNINGS boundary/documentation issues"
+            echo "Consider addressing these for better architecture compliance"
+          else
+            echo "✅ All agents have proper boundaries"
+          fi
+
+  metrics:
+    name: Architecture Metrics
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Calculate metrics
+        id: metrics
+        run: |
+          echo "Calculating architecture compliance metrics..."
+
+          # Count total components
+          TOTAL_AGENTS=$(find agents/ -name "*.md" | wc -l)
+          TOTAL_SKILLS=$(find skills/ -name "SKILL.md" | wc -l)
+          TOTAL_COMMANDS=$(find commands/ -name "*.md" | wc -l)
+
+          # Count compliant components (reference referentiel)
+          COMPLIANT_AGENTS=$(grep -l "referentiel/" agents/*.md 2>/dev/null | wc -l)
+          COMPLIANT_SKILLS=$(find skills/ -name "SKILL.md" -exec grep -l "referentiel/" {} \; 2>/dev/null | wc -l)
+
+          # Calculate percentages
+          if [ $TOTAL_AGENTS -gt 0 ]; then
+            AGENT_COMPLIANCE=$((COMPLIANT_AGENTS * 100 / TOTAL_AGENTS))
+          else
+            AGENT_COMPLIANCE=0
+          fi
+
+          if [ $TOTAL_SKILLS -gt 0 ]; then
+            SKILL_COMPLIANCE=$((COMPLIANT_SKILLS * 100 / TOTAL_SKILLS))
+          else
+            SKILL_COMPLIANCE=0
+          fi
+
+          # Output metrics
+          echo "## Architecture Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Total | Compliant | % |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-------|-----------|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Agents | $TOTAL_AGENTS | $COMPLIANT_AGENTS | $AGENT_COMPLIANCE% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Skills | $TOTAL_SKILLS | $COMPLIANT_SKILLS | $SKILL_COMPLIANCE% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commands | $TOTAL_COMMANDS | - | - |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Goal**: 100% compliance (all components reference referentiel)" >> $GITHUB_STEP_SUMMARY
+
+          echo "agent_compliance=$AGENT_COMPLIANCE" >> $GITHUB_OUTPUT
+          echo "skill_compliance=$SKILL_COMPLIANCE" >> $GITHUB_OUTPUT
+
+      - name: Check compliance threshold
+        env:
+          AGENT_COMPLIANCE: ${{ steps.metrics.outputs.agent_compliance }}
+          SKILL_COMPLIANCE: ${{ steps.metrics.outputs.skill_compliance }}
+        run: |
+          # Set minimum acceptable compliance (can adjust this)
+          MIN_COMPLIANCE=80
+
+          if [ $AGENT_COMPLIANCE -lt $MIN_COMPLIANCE ]; then
+            echo "::warning::Agent compliance ($AGENT_COMPLIANCE%) below threshold ($MIN_COMPLIANCE%)"
+          fi
+
+          if [ $SKILL_COMPLIANCE -lt $MIN_COMPLIANCE ]; then
+            echo "::warning::Skill compliance ($SKILL_COMPLIANCE%) below threshold ($MIN_COMPLIANCE%)"
+          fi
+
+          echo "Current compliance levels acceptable (threshold: $MIN_COMPLIANCE%)"
